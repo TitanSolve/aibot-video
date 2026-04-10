@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AI Video Animation Search</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      margin: 0; padding: 20px;
+      min-height: 100vh;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 20px;
+      padding: 40px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+    h1 {
+      margin: 0 0 10px;
+      font-size: 32px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .subtitle {
+      color: #666;
+      margin-bottom: 30px;
+    }
+    .upload-section {
+      border: 3px dashed #667eea;
+      border-radius: 16px;
+      padding: 40px;
+      text-align: center;
+      margin-bottom: 30px;
+      transition: all 0.3s;
+    }
+    .upload-section:hover {
+      border-color: #764ba2;
+      background: #f8f9ff;
+    }
+    .upload-btn {
+      padding: 14px 28px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+    .upload-btn:hover {
+      transform: translateY(-2px);
+    }
+    .upload-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    input[type="file"] {
+      display: none;
+    }
+    .status {
+      margin-top: 20px;
+      padding: 15px;
+      border-radius: 10px;
+      background: #f0f0f0;
+    }
+    .status.processing {
+      background: #fff3cd;
+      border-left: 4px solid #ffc107;
+    }
+    .status.completed {
+      background: #d4edda;
+      border-left: 4px solid #28a745;
+    }
+    .status.error {
+      background: #f8d7da;
+      border-left: 4px solid #dc3545;
+    }
+    .videos-list {
+      margin-top: 30px;
+    }
+    .video-card {
+      background: #f8f9ff;
+      padding: 20px;
+      border-radius: 12px;
+      margin-bottom: 15px;
+      border-left: 4px solid #667eea;
+    }
+    .video-card h3 {
+      margin: 0 0 10px;
+      font-size: 18px;
+    }
+    .video-meta {
+      color: #666;
+      font-size: 14px;
+    }
+    .badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      margin-right: 8px;
+    }
+    .badge.pending { background: #ffc107; color: #000; }
+    .badge.processing { background: #17a2b8; color: #fff; }
+    .badge.completed { background: #28a745; color: #fff; }
+    .badge.failed { background: #dc3545; color: #fff; }
+    
+    /* Modal Styles */
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0,0,0,0.6);
+      animation: fadeIn 0.3s;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    .modal-content {
+      background-color: white;
+      margin: 10% auto;
+      padding: 0;
+      border-radius: 20px;
+      width: 90%;
+      max-width: 500px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+      animation: slideDown 0.3s;
+      overflow: hidden;
+    }
+    @keyframes slideDown {
+      from { transform: translateY(-50px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    .modal-header {
+      background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+      color: white;
+      padding: 30px;
+      text-align: center;
+    }
+    .modal-header.error {
+      background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+    }
+    .modal-header h2 {
+      margin: 0;
+      font-size: 28px;
+    }
+    .modal-header .icon {
+      font-size: 48px;
+      margin-bottom: 10px;
+    }
+    .modal-body {
+      padding: 30px;
+      text-align: center;
+    }
+    .modal-body p {
+      margin: 10px 0;
+      color: #666;
+      line-height: 1.6;
+    }
+    .modal-body .stats {
+      background: #f8f9ff;
+      padding: 20px;
+      border-radius: 12px;
+      margin: 20px 0;
+    }
+    .modal-body .stat-item {
+      display: flex;
+      justify-content: space-between;
+      margin: 10px 0;
+      font-size: 16px;
+    }
+    .modal-body .stat-label {
+      font-weight: 600;
+      color: #333;
+    }
+    .modal-body .stat-value {
+      color: #667eea;
+      font-weight: 700;
+    }
+    .modal-footer {
+      padding: 20px 30px;
+      text-align: center;
+      border-top: 1px solid #e0e0e0;
+    }
+    .modal-btn {
+      padding: 12px 32px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+    .modal-btn:hover {
+      transform: scale(1.05);
+    }
+    
+    /* Toast Notification */
+    .toast {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: white;
+      padding: 20px 24px;
+      border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+      z-index: 2000;
+      animation: slideInRight 0.3s;
+      display: none;
+      border-left: 4px solid #667eea;
+      max-width: 400px;
+    }
+    @keyframes slideInRight {
+      from { transform: translateX(400px); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+    .toast.show {
+      display: block;
+    }
+    .toast.success { border-left-color: #28a745; }
+    .toast.error { border-left-color: #dc3545; }
+    .toast .toast-title {
+      font-weight: 700;
+      margin-bottom: 5px;
+      font-size: 16px;
+    }
+    .toast .toast-message {
+      color: #666;
+      font-size: 14px;
+    }
+    
+    /* Progress Bar */
+    .progress-container {
+      margin-top: 20px;
+      display: none;
+    }
+    .progress-container.active {
+      display: block;
+    }
+    .progress-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+    .progress-bar-bg {
+      background: #e0e0e0;
+      border-radius: 10px;
+      height: 24px;
+      overflow: hidden;
+      position: relative;
+    }
+    .progress-bar-fill {
+      background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+      height: 100%;
+      transition: width 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 12px;
+      font-weight: 700;
+      min-width: 30px;
+    }
+    .progress-details {
+      margin-top: 12px;
+      padding: 12px;
+      background: #f8f9ff;
+      border-radius: 8px;
+      font-size: 13px;
+    }
+    .progress-step {
+      display: flex;
+      align-items: center;
+      margin: 6px 0;
+      color: #666;
+    }
+    .progress-step.active {
+      color: #667eea;
+      font-weight: 600;
+    }
+    .progress-step.complete {
+      color: #28a745;
+    }
+    .progress-step .icon {
+      margin-right: 8px;
+      font-size: 16px;
+    }
+    .elapsed-time {
+      color: #999;
+      font-size: 12px;
+      margin-top: 8px;
+      text-align: right;
+    }
+  </style>
+</head>
+<body>
+  <!-- Completion Modal -->
+  <div id="completionModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header" id="modalHeader">
+        <div class="icon" id="modalIcon">✅</div>
+        <h2 id="modalTitle">Processing Complete!</h2>
+      </div>
+      <div class="modal-body">
+        <p id="modalMessage">Your video has been successfully processed and analyzed.</p>
+        <div class="stats">
+          <div class="stat-item">
+            <span class="stat-label">📹 Video:</span>
+            <span class="stat-value" id="statFilename">-</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">⏱️ Processing Time:</span>
+            <span class="stat-value" id="statTime">-</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">🎬 Segments:</span>
+            <span class="stat-value" id="statSegments">-</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">🤖 AI Descriptions:</span>
+            <span class="stat-value" id="statAI">-</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">✅ Success Rate:</span>
+            <span class="stat-value" id="statSuccess">-</span>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="modal-btn" onclick="closeModal()">Got it!</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="toast">
+    <div class="toast-title" id="toastTitle">Notification</div>
+    <div class="toast-message" id="toastMessage">Message</div>
+  </div>
+
+  <div class="container">
+    <h1>🎬 AI Video Animation Search</h1>
+    <p class="subtitle">Upload videos to automatically analyze animations, extract segments, and generate searchable metadata</p>
+
+    <div class="upload-section">
+      <h2>📤 Upload Video</h2>
+      <p>Supported formats: MP4, MOV, AVI, WEBM, MKV (max 500MB)</p>
+      <input type="file" id="videoFile" accept="video/*" />
+      <button class="upload-btn" id="uploadBtn" onclick="document.getElementById('videoFile').click()">
+        Choose Video File
+      </button>
+      <div id="uploadStatus"></div>
+      
+      <!-- Progress Bar -->
+      <div id="progressContainer" class="progress-container">
+        <div class="progress-header">
+          <span id="progressLabel">Processing...</span>
+          <span id="progressPercent">0%</span>
+        </div>
+        <div class="progress-bar-bg">
+          <div id="progressBarFill" class="progress-bar-fill" style="width: 0%">0%</div>
+        </div>
+        <div class="progress-details">
+          <div id="progressStep1" class="progress-step">
+            <span class="icon">⏳</span>
+            <span>Detecting animation segments...</span>
+          </div>
+          <div id="progressStep2" class="progress-step">
+            <span class="icon">⏳</span>
+            <span>Generating AI descriptions...</span>
+          </div>
+          <div id="progressStep3" class="progress-step">
+            <span class="icon">⏳</span>
+            <span>Creating embeddings...</span>
+          </div>
+          <div class="elapsed-time" id="elapsedTime">Elapsed: 0s</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="videos-list">
+      <h2>📹 Recent Videos</h2>
+      <div id="videosList">
+        <p style="color: #999;">No videos uploaded yet</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_URL = 'http://localhost:8000';
+    let processingVideos = new Set();
+    let lastVideoStates = new Map();
+    let progressStartTime = null;
+    let progressInterval = null;
+    let currentProcessingVideo = null;
+
+    // Progress tracking
+    function updateProgress(videoData) {
+      const container = document.getElementById('progressContainer');
+      const label = document.getElementById('progressLabel');
+      const percent = document.getElementById('progressPercent');
+      const fill = document.getElementById('progressBarFill');
+      const step1 = document.getElementById('progressStep1');
+      const step2 = document.getElementById('progressStep2');
+      const step3 = document.getElementById('progressStep3');
+      
+      if (videoData.status === 'processing') {
+        // Show progress
+        container.classList.add('active');
+        currentProcessingVideo = videoData.id;
+        
+        if (!progressStartTime) {
+          progressStartTime = Date.now();
+          startElapsedTimer();
+        }
+        
+        const segmentCount = videoData.segment_count || 0;
+        const aiCount = videoData.ai_description_count || 0;
+        
+        // Calculate progress
+        let progress = 0;
+        let currentStep = 'Uploading...';
+        
+        if (segmentCount > 0) {
+          step1.classList.remove('active');
+          step1.classList.add('complete');
+          step1.querySelector('.icon').textContent = '✅';
+          
+          currentStep = `Analyzing segments (${aiCount}/${segmentCount})`;
+          step2.classList.add('active');
+          
+          if (aiCount > 0) {
+            step2.querySelector('.icon').textContent = '⚙️';
+            progress = 20 + (aiCount / segmentCount * 60); // 20% to 80%
+            
+            if (aiCount === segmentCount) {
+              step2.classList.remove('active');
+              step2.classList.add('complete');
+              step2.querySelector('.icon').textContent = '✅';
+              step3.classList.add('active');
+              step3.querySelector('.icon').textContent = '⚙️';
+              currentStep = 'Finalizing embeddings...';
+              progress = 90;
+            }
+          } else {
+            progress = 20;
+          }
+        } else {
+          step1.classList.add('active');
+          step1.querySelector('.icon').textContent = '⚙️';
+          currentStep = 'Detecting animations...';
+          progress = 10;
+        }
+        
+        label.textContent = currentStep;
+        percent.textContent = Math.round(progress) + '%';
+        fill.style.width = progress + '%';
+        fill.textContent = Math.round(progress) + '%';
+        
+      } else if (videoData.status === 'completed' || videoData.status === 'failed') {
+        // Complete or failed
+        if (currentProcessingVideo === videoData.id) {
+          if (videoData.status === 'completed') {
+            step1.classList.add('complete');
+            step1.querySelector('.icon').textContent = '✅';
+            step2.classList.add('complete');
+            step2.querySelector('.icon').textContent = '✅';
+            step3.classList.add('complete');
+            step3.querySelector('.icon').textContent = '✅';
+            
+            label.textContent = '✅ Complete!';
+            percent.textContent = '100%';
+            fill.style.width = '100%';
+            fill.textContent = '100%';
+          } else {
+            label.textContent = '❌ Failed';
+            fill.style.background = 'linear-gradient(90deg, #dc3545 0%, #c82333 100%)';
+          }
+          
+          stopElapsedTimer();
+          
+          // Hide progress after 3 seconds
+          setTimeout(() => {
+            container.classList.remove('active');
+            resetProgress();
+          }, 3000);
+        }
+      }
+    }
+    
+    function resetProgress() {
+      progressStartTime = null;
+      currentProcessingVideo = null;
+      document.getElementById('progressLabel').textContent = 'Processing...';
+      document.getElementById('progressPercent').textContent = '0%';
+      document.getElementById('progressBarFill').style.width = '0%';
+      document.getElementById('progressBarFill').textContent = '0%';
+      document.getElementById('progressBarFill').style.background = 'linear-gradient(90deg, #667eea 0%, #764ba2 100%)';
+      
+      ['progressStep1', 'progressStep2', 'progressStep3'].forEach(id => {
+        const step = document.getElementById(id);
+        step.classList.remove('active', 'complete');
+        step.querySelector('.icon').textContent = '⏳';
+      });
+    }
+    
+    function startElapsedTimer() {
+      if (progressInterval) return;
+      progressInterval = setInterval(() => {
+        if (progressStartTime) {
+          const elapsed = Math.floor((Date.now() - progressStartTime) / 1000);
+          const minutes = Math.floor(elapsed / 60);
+          const seconds = elapsed % 60;
+          const timeStr = minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
+          document.getElementById('elapsedTime').textContent = `Elapsed: ${timeStr}`;
+        }
+      }, 1000);
+    }
+    
+    function stopElapsedTimer() {
+      if (progressInterval) {
+        clearInterval(progressInterval);
+        progressInterval = null;
+      }
+    }
+
+    // Modal functions
+    function showModal(videoData, processingTime) {
+      const modal = document.getElementById('completionModal');
+      const header = document.getElementById('modalHeader');
+      const icon = document.getElementById('modalIcon');
+      const title = document.getElementById('modalTitle');
+      const message = document.getElementById('modalMessage');
+      
+      if (videoData.status === 'completed') {
+        header.classList.remove('error');
+        icon.textContent = '✅';
+        title.textContent = 'Processing Complete!';
+        message.textContent = 'Your video has been successfully processed and analyzed.';
+        
+        document.getElementById('statFilename').textContent = videoData.filename;
+        document.getElementById('statTime').textContent = processingTime || 'N/A';
+        document.getElementById('statSegments').textContent = videoData.segment_count || '0';
+        document.getElementById('statAI').textContent = videoData.ai_description_count || '0';
+        
+        const successRate = videoData.segment_count > 0 
+          ? ((videoData.ai_description_count / videoData.segment_count) * 100).toFixed(1) 
+          : '0';
+        document.getElementById('statSuccess').textContent = successRate + '%';
+        
+      } else if (videoData.status === 'failed') {
+        header.classList.add('error');
+        icon.textContent = '❌';
+        title.textContent = 'Processing Failed';
+        message.textContent = videoData.error_message || 'An error occurred during processing.';
+        
+        document.getElementById('statFilename').textContent = videoData.filename;
+        document.getElementById('statTime').textContent = 'N/A';
+        document.getElementById('statSegments').textContent = '0';
+        document.getElementById('statAI').textContent = '0';
+        document.getElementById('statSuccess').textContent = '0%';
+      }
+      
+      modal.style.display = 'block';
+      
+      // Play notification sound (if browser allows)
+      try {
+        const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSSF0fPTgjMGHm7A7+OZSR0NVqvl8LNnHg0+ldjxzIAuBx930PG/kz0HGWm99uqiVxgLP5vd8sV3KwYjgc/y2ow8CRxtuevvo10dDU+o5O+ybBwLPpPY8s+CMQYea9fzvpI+CAMzouL0wHIqBCF+zvHajjgHHGu97OecTw8MS6bn7rdoGws9lNnyzIY1Bht40fDBkTwHGWi+8OajUw4KUKbe8rdpHQxBmtvywHIpBCR+zO7ajDMICR1uwfLpl0sNCFWp5O+1aRkKO5TX8c2AMQYeb8Lyw5M+BwcyoN/yvHUsBSN/zO/bjzkICRxsv+/olEcOCVSo5O+2aBkKO5LY8s6CMQYfb8Pyw5M+BwcyoN/yu3QrBSF+yu7ajTgICBxrv+/olEcOCFSo5O+2ZxgLO5LY8s6CMQYfb8Pyw5M+BwcyoN/yundtBSF+yu7ajTgICBxrvuvok0cOCFSo5O+2ZxgLO5LY8s6CMQYfb8Pyw5M+BwcyoN/yundtBSF+yu7ajTgHCB1pvuvok0cOCFSo5O+2aBgLO5LY8s6CMQYfb8Pyw5M+BwcyoN/yundtBSF+yu7ajTgICB1pvuvok0cOCFSo5O+2aBgLO5LY8s6CMQYfb8Pyw5M+BwcyoN/yundtBSF+yu7ajTgICB1pvuvok0cOCFSo5O+2aBgLO5LY8s6CMQYfb8Pyw5M+BwcyoN/yundtBSF+yu7ajTgICB1pvuvok0cOCFSo5O+2aBgLO5LY8s6CMQYfb8Pyw5M+BwcyoN/yundtBSF+yu7ajTgICB1pvuvok0cOCFSo5O+2aBgLO5LY8s6CMQYfb8Pyw5M+BwcyoN/yundtBSF+yu7ajTgICB1pvuvok0cOCFSo5O+2aBgLO5LY8s6CMQYfb8Pyw5M+BwcyoN/yundtBSF+yu7ajTgICB1pvuvok0cOCFSo5O+2aBgLO5LY8s6CMQYfb8Pyw5M+BwcyoN/yundtBSF+yu7ajTgICB1pvuvok0cOCFSo5O+2aBgLO5LY8s6CMQYfb8Pyw5M+BwcyoN/yundtBSF+yu7ajTgICB1pvuvok0cOCFSo5O+2aBgLO5LY8s6CMQYfb8Pyw5M+Bw==');
+        audio.play().catch(() => {});
+      } catch(e) {}
+    }
+
+    function closeModal() {
+      document.getElementById('completionModal').style.display = 'none';
+    }
+
+    // Toast notification
+    function showToast(title, message, type = 'success') {
+      const toast = document.getElementById('toast');
+      document.getElementById('toastTitle').textContent = title;
+      document.getElementById('toastMessage').textContent = message;
+      toast.className = 'toast show ' + type;
+      
+      setTimeout(() => {
+        toast.classList.remove('show');
+      }, 5000);
+    }
+
+    // Upload video
+    document.getElementById('videoFile').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const uploadBtn = document.getElementById('uploadBtn');
+      const statusDiv = document.getElementById('uploadStatus');
+
+      uploadBtn.disabled = true;
+      uploadBtn.textContent = 'Uploading...';
+
+      const formData = new FormData();
+      formData.append('file', file);
+
+      try {
+        const res = await fetch(`${API_URL}/videos/upload`, {
+          method: 'POST',
+          body: formData
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.detail || 'Upload failed');
+        }
+
+        statusDiv.innerHTML = `
+          <div class="status processing">
+            ✅ Video uploaded successfully!<br>
+            <strong>Status:</strong> ${data.status}<br>
+            <strong>ID:</strong> ${data.id}<br>
+            Processing will begin shortly...
+          </div>
+        `;
+
+        // Refresh videos list
+        setTimeout(loadVideos, 2000);
+
+      } catch (err) {
+        statusDiv.innerHTML = `
+          <div class="status error">
+            ❌ Upload failed: ${err.message}
+          </div>
+        `;
+      } finally {
+        uploadBtn.disabled = false;
+        uploadBtn.textContent = 'Choose Video File';
+        e.target.value = '';
+      }
+    });
+
+    // Load videos list
+    async function loadVideos() {
+      try {
+        const res = await fetch(`${API_URL}/videos/`);
+        const videos = await res.json();
+
+        const listDiv = document.getElementById('videosList');
+
+        if (videos.length === 0) {
+          listDiv.innerHTML = '<p style="color: #999;">No videos uploaded yet</p>';
+          return;
+        }
+
+        // Check for status changes
+        videos.forEach(video => {
+          const lastState = lastVideoStates.get(video.id);
+          
+          // Update progress bar for processing videos
+          if (video.status === 'processing') {
+            updateProgress(video);
+          }
+          
+          // If video just completed or failed
+          if (lastState && lastState.status === 'processing' && 
+              (video.status === 'completed' || video.status === 'failed')) {
+            
+            // Update progress one last time
+            updateProgress(video);
+            
+            // Calculate processing time
+            let processingTime = 'N/A';
+            if (video.processed_at && video.uploaded_at) {
+              const start = new Date(video.uploaded_at);
+              const end = new Date(video.processed_at);
+              const seconds = Math.floor((end - start) / 1000);
+              const minutes = Math.floor(seconds / 60);
+              const remainingSeconds = seconds % 60;
+              
+              if (minutes > 0) {
+                processingTime = `${minutes}m ${remainingSeconds}s`;
+              } else {
+                processingTime = `${seconds}s`;
+              }
+            }
+            
+            // Show modal notification
+            showModal(video, processingTime);
+            
+            // Also show toast for quick notification
+            if (video.status === 'completed') {
+              showToast(
+                '✅ Video Ready!', 
+                `${video.filename} processed in ${processingTime}`,
+                'success'
+              );
+            } else {
+              showToast(
+                '❌ Processing Failed', 
+                `${video.filename} - ${video.error_message || 'Unknown error'}`,
+                'error'
+              );
+            }
+            
+            processingVideos.delete(video.id);
+          }
+          
+          // Track processing videos
+          if (video.status === 'processing') {
+            processingVideos.add(video.id);
+          }
+          
+          // Update last state
+          lastVideoStates.set(video.id, {
+            status: video.status,
+            segment_count: video.segment_count,
+            ai_description_count: video.ai_description_count
+          });
+        });
+
+        listDiv.innerHTML = videos.map(v => `
+          <div class="video-card">
+            <h3>${v.filename}</h3>
+            <div class="video-meta">
+              <span class="badge ${v.status}">${v.status.toUpperCase()}</span>
+              <strong>Duration:</strong> ${v.duration ? v.duration.toFixed(2) + 's' : 'N/A'} |
+              <strong>Resolution:</strong> ${v.width}x${v.height} |
+              <strong>FPS:</strong> ${v.fps ? v.fps.toFixed(2) : 'N/A'}<br>
+              <strong>Uploaded:</strong> ${new Date(v.uploaded_at).toLocaleString()}
+              ${v.processed_at ? `<br><strong>Processed:</strong> ${new Date(v.processed_at).toLocaleString()}` : ''}
+              ${v.segment_count ? `<br><strong>Segments:</strong> ${v.segment_count} | <strong>AI Descriptions:</strong> ${v.ai_description_count || 0}` : ''}
+              ${v.error_message ? `<br><span style="color: red;">Error: ${v.error_message}</span>` : ''}
+            </div>
+          </div>
+        `).join('');
+
+      } catch (err) {
+        console.error('Failed to load videos:', err);
+      }
+    }
+
+    // Load videos on page load
+    loadVideos();
+
+    // Auto-refresh every 3 seconds for real-time progress
+    setInterval(loadVideos, 3000);
+  </script>
+</body>
+</html>
